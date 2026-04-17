@@ -1,51 +1,34 @@
-# Shortest Path Visualizer
+# Neon PathVisualizer 🚀
 
-A dynamic web application built to visualize various pathfinding algorithms in real-time. This tool helps users understand how algorithms like Dijkstra's and BFS navigate through grids, obstacles, and weighted paths.
+A highly futuristic, interactive shortest-path visualizer built with modern, declarative vanilla JavaScript, HTML, and CSS. The application allows users to build and run multiple shortest-path algorithms on customizable node-edge networks, featuring sleek glassmorphism aesthetics and real-time computation KPI metrics.
 
-[Insert Live Demo Link Here]
+## Features ✨
 
-## 🚀 Features
-- **Real-time Visualization:** Watch the algorithm explore nodes and find the final path step-by-step.
-- **Interactive Grid:** - Drag and drop Start and End nodes.
-  - Draw walls/obstacles by clicking and dragging.
-- **Algorithms Supported:**
-  - **Dijkstra’s Algorithm:** The father of pathfinding; guarantees the shortest path.
-  - **A* Search:** Uses heuristics to find the path much faster than Dijkstra.
-  - **Breadth-First Search (BFS):** Guarantees the shortest path on unweighted graphs.
-  - **Depth-First Search (DFS):** Explores as far as possible before backtracking (not ideal for shortest path).
-- **Customizable Speed:** Adjust the visualization speed to see the logic in detail or get results instantly.
+### Graph Customization
+- **Interactive Canvas**: Drag and drop nodes, interconnect nodes by dynamically adding edge weights.
+- **Dynamic Control**: Supports both Directed and Undirected graphs.
+- **Built-in Samples**: Load pre-constructed mazes natively (Negative Edges, Cartesian Grids, Dense Networks).
+- **Graceful Error Handling**: Complete Toast notification system handles negative edge weights, negative cycles, and unreachable graph connections without halting.
 
-## 🛠️ Tech Stack
-- **Frontend:** React.js / JavaScript (ES6+)
-- **Styling:** CSS3 (Flexbox/Grid and Animations)
-- **State Management:** React Hooks (useState, useEffect)
+### Algorithms Included 🧠
+All pathfinding logic is formally decoupled into an independent `algorithms.js` module.
+1. **A* (A-Star) Search**: Utilizes geometric spatial coordinates to estimate heuristic movement cost for lightning-fast performance in mapping scenarios.
+2. **Dijkstra's Algorithm**: The foundational greedy uniform cost search. Ideal for standard networks without negative weights.
+3. **Bellman-Ford**: Effectively handles networks containing negative-weight routes, and rigorously traps and reports negative-weight cycles.
+4. **Floyd-Warshall**: A robust dynamic programming method that computes all node-to-node pairs simultaneously.
 
-## 📖 How it Works
-The grid is represented as a 2D array where each "node" is an object containing coordinates, distance from start, and its status (isWall, isVisited, etc.). 
-1. The algorithm is triggered with the start node.
-2. It explores neighbors based on its specific logic (e.g., priority queue for Dijkstra).
-3. Once the end node is reached, the "parent" pointers are used to backtrack and highlight the shortest path.
+## Run Locally 🖥️
+This is a standard client-side zero-dependency framework application.
+1. Clone or download the source files.
+2. Open `index.html` in any modern web browser.
+3. (Optional) Run a lightweight local HTTP server if you ever transition the internal scripts to ES Modules.
 
-## 🏁 Getting Started
+## Architecture & Code Structure 🏗️
+- `index.html`: Handles the full CSS grid responsive UI layout, the Canvas API rendering logic, and the UI-interaction layer.
+- `algorithms.js`: A structurally decoupled pure-logic graph module processing arrays of nodes and edges without DOM reliance.
 
-### Prerequisites
-- Node.js installed on your machine.
+## Device Optimization 📱
+The engine evaluates the window space and re-orients the CSS grid vertically to stack components cleanly on mobile screens. It natively includes responsive overlay alerts suggesting landscape-device rotation whenever it's optimal.
 
-### Installation
-1. Clone the repository:
-   ```bash
-   git clone [https://github.com/ShivaManiV2/Shortest-Path-Visualizer.git](https://github.com/ShivaManiV2/Shortest-Path-Visualizer.git)
-Navigate to the project directory:
-
-Bash
-cd Shortest-Path-Visualizer
-Install dependencies:
-
-Bash
-npm install
-Start the development server:
-
-Bash
-npm start
 🤝 Contributing
 Feel free to fork this project and submit a Pull Request. Improvements to the UI or adding new algorithms (like Bellman-Ford or Swarm) are always welcome!
