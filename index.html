@@ -2,114 +2,186 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Multi‑Method Shortest Path Visualizer</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>Neon PathVisualizer</title>
 <style>
-  :root { --bg:#0f1220; --panel:#171a2b; --muted:#8b93a7; --text:#e8ecf4; --accent:#6cc644; --warn:#ffb020; --err:#ff5d5d; }
+  :root { 
+    --bg: #090b14; 
+    --panel-bg: rgba(18, 22, 41, 0.6); 
+    --panel-border: rgba(66, 82, 138, 0.3);
+    --muted: #7b8ab8; 
+    --text: #e2e8f0; 
+    --accent: #00e5ff; 
+    --accent-glow: rgba(0, 229, 255, 0.4);
+    --path: #39ff14;
+    --warn: #ffb020; 
+    --err: #ff3366; 
+  }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; background: var(--bg); color: var(--text); }
-  header { padding: 10px 16px; background: linear-gradient(90deg,#171a2b,#1e2340); border-bottom: 1px solid #222844; display:flex; align-items:center; gap:12px; flex-wrap: wrap; }
-  header h1 { margin:0; font-size: 16px; font-weight:600; letter-spacing:.2px; }
-  header .pill { font-size:12px; padding:2px 8px; border:1px solid #2a3158; border-radius:99px; color:var(--muted); }
-  main { display:grid; grid-template-columns: 1fr 320px; height: calc(100vh - 54px); }
-  #stage { position:relative; background: radial-gradient(1200px 800px at 20% -10%, #192039 0, #0f1220 60%), #0f1220; }
+  body { margin:0; font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+  
+  /* Glassmorphism panel */
+  .glass { background: var(--panel-bg); backdrop-filter: blur(12px); border: 1px solid var(--panel-border); border-radius: 12px; }
+  
+  header { padding: 12px 20px; background: rgba(9, 11, 20, 0.8); backdrop-filter: blur(8px); border-bottom: 1px solid var(--panel-border); display:flex; align-items:center; gap:16px; flex-wrap: wrap; z-index: 10; position: relative; }
+  header h1 { margin:0; font-size: 18px; font-weight:700; letter-spacing: 1px; color: #fff; text-shadow: 0 0 10px var(--accent-glow); }
+  header .pill { font-size:11px; padding:4px 10px; border:1px solid rgba(255,255,255,0.1); border-radius:99px; color:var(--accent); background: rgba(0,229,255,0.05); }
+  
+  main { display:grid; grid-template-columns: 1fr 340px; height: calc(100vh - 55px); position: relative; }
+  
+  #stage { position:relative; background: radial-gradient(circle at 50% 50%, #111526 0%, #090b14 100%); overflow: hidden; }
   #canvas { width:100%; height:100%; display:block; }
-  #panel { background: var(--panel); border-left:1px solid #202742; padding:14px; overflow:auto; }
-  .section { margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #252c4a; }
+  
+  #panel { padding:16px; overflow-y: auto; overflow-x: hidden; border-left: 1px solid var(--panel-border); background: rgba(9, 11, 20, 0.4); }
+  
+  .section { margin-bottom:16px; padding-bottom:16px; border-bottom: 1px solid rgba(255,255,255,0.05); }
   .section:last-child { border-bottom: 0; }
-  .row { display:flex; gap:8px; align-items:center; margin:6px 0; flex-wrap: wrap; }
-  label { font-size:13px; color: var(--muted); }
+  
+  .row { display:flex; gap:8px; align-items:center; margin:8px 0; flex-wrap: wrap; }
+  label { font-size:12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  
   input[type="number"], select, input[type="text"] {
-    background:#111528; border:1px solid #2a3158; color:var(--text); padding:6px 8px; border-radius:6px; font-size:13px; width:100%;
+    background: rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:var(--text); padding:8px 12px; border-radius:6px; font-size:13px; width:100%; transition: border 0.2s, box-shadow 0.2s;
   }
+  input[type="number"]:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+  
   button {
-    background:#232a4d; border:1px solid #2e3766; color:var(--text); padding:8px 10px; border-radius:8px; font-size:13px; cursor:pointer;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color:var(--text); padding:8px 12px; border-radius:6px; font-size:13px; cursor:pointer; font-weight: 500; transition: all 0.2s;
   }
-  button:hover { filter: brightness(1.08); }
-  button.primary { background:#245b2a; border-color:#2e7d32; }
-  button.warn { background:#5d3a0d; border-color:#8a5a15; }
-  button.ghost { background:transparent; border-color:#2a3158; }
-  .mode-btn.active { outline:2px solid #4a90ff; }
-  .badge { font-size:11px; padding:2px 6px; border-radius:999px; border:1px solid #2a3158; color:#b6bfd6; }
-  .note { font-size:12px; color:var(--muted); }
-  .muted { color: var(--muted); }
-  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .kpi { background:#111528; border:1px solid #2a3158; border-radius:8px; padding:8px; }
-  .kpi .label { font-size:11px; color: var(--muted); }
-  .kpi .value { font-size:14px; margin-top:4px; }
-  details { background:#111528; border:1px solid #2a3158; border-radius:8px; padding:8px 10px; }
-  summary { cursor:pointer; }
-  code, pre { background:#0b0f22; color:#dfe7ff; border:1px solid #222a4a; border-radius:6px; padding:2px 6px; }
-  .legend { display:flex; gap:6px; align-items:center; flex-wrap: wrap; font-size:12px; color:#c4cbe1; }
-  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
-  .dot.src { background:#4a90ff; }
-  .dot.dst { background:#ff8a3d; }
-  .dot.path { background:#6cc644; }
-  .dot.neg { background:#ff5d5d; }
-  .err { color: var(--err); font-size:12px; }
-  .ok { color: var(--accent); font-size:12px; }
-  .table { width:100%; font-size:12px; border-collapse: collapse; margin-top:6px; }
-  .table th, .table td { border:1px solid #2a3158; padding:6px 8px; text-align:left; }
-  .table th { background:#111528; color:#c4cbe1; }
-  .table td { color:#d6dcf1; }
-  .foot { font-size:11px; color:#9aa3bd; }
-  .linklike { text-decoration: underline; cursor: pointer; color:#93b7ff; }
+  button:hover { background: rgba(255,255,255,0.1); }
+  
+  button.primary { background: rgba(0, 229, 255, 0.1); border-color: var(--accent); color: var(--accent); text-shadow: 0 0 5px var(--accent-glow); box-shadow: 0 0 10px rgba(0,229,255,0.15); }
+  button.primary:hover { background: rgba(0, 229, 255, 0.2); box-shadow: 0 0 15px rgba(0,229,255,0.3); }
+  
+  button.warn { background: rgba(255, 176, 32, 0.1); border-color: var(--warn); color: var(--warn); }
+  button.warn:hover { background: rgba(255, 176, 32, 0.2); }
+  
+  .mode-btn.active { background: rgba(0, 229, 255, 0.15); border-color: var(--accent); box-shadow: inset 0 0 8px rgba(0,229,255,0.2); color: #fff; }
+  
+  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top: 12px; }
+  .kpi { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius:8px; padding:10px; text-align: center; }
+  .kpi .label { font-size:10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .kpi .value { font-size:18px; font-weight: 600; margin-top:4px; color: #fff; text-shadow: 0 0 8px rgba(255,255,255,0.3); }
+  
+  details { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius:8px; padding:10px; margin-bottom: 8px; }
+  summary { cursor:pointer; font-size: 13px; font-weight: 600; color: #fff; }
+  
+  .legend { display:flex; gap:12px; align-items:center; flex-wrap: wrap; font-size:12px; color:var(--muted); margin-top: 8px;}
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; box-shadow: 0 0 5px currentColor; }
+  .dot.src { color: #00e5ff; background: #00e5ff; }
+  .dot.dst { color: #ff00ea; background: #ff00ea; }
+  .dot.path { color: var(--path); background: var(--path); }
+  .dot.neg { color: var(--err); background: var(--err); }
+  
+  .table { width:100%; font-size:12px; border-collapse: collapse; margin-top:8px; }
+  .table th, .table td { border:1px solid rgba(255,255,255,0.1); padding:8px; text-align:left; }
+  .table th { background: rgba(255,255,255,0.05); color:#fff; font-weight: 600; }
+  .table td { color:var(--muted); }
+  
+  code { font-family: monospace; color: var(--accent); background: rgba(0,229,255,0.1); padding: 2px 4px; border-radius: 4px; }
+  
+  /* Toast */
+  #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display:flex; flex-direction:column; gap:10px; }
+  .toast { background: rgba(15, 20, 35, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); padding: 14px 20px; border-radius: 8px; color: #fff; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); display: flex; align-items: center; gap: 12px; min-width: 250px; animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+  .toast.err { border-left: 4px solid var(--err); }
+  .toast.ok { border-left: 4px solid var(--path); }
+  .toast.warn { border-left: 4px solid var(--warn); }
+  @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes fadeOut { from { opacity: 1; transform: translateY(-10px); } to { opacity: 0; transform: translateY(-20px); } }
+  .toast.hiding { animation: fadeOut 0.3s ease-out forwards; }
+
+  /* Mobile Warning Overlay */
+  #mobile-warning { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(15px); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; padding: 30px; text-align: center; }
+  #mobile-warning h2 { color: var(--accent); margin-bottom: 10px; text-shadow: 0 0 10px var(--accent-glow); }
+  #mobile-warning p { color: var(--text); margin-bottom: 20px; font-size: 15px; line-height: 1.5; }
+  #mobile-warning button { background: var(--accent); border: none; color: #000; padding: 12px 24px; font-weight: bold; border-radius: 8px; font-size: 16px; cursor: pointer; }
+
+  /* Responsiveness */
+  @media (max-width: 768px), (max-height: 500px) {
+    main { grid-template-columns: 1fr; grid-template-rows: 50vh auto; height: auto; overflow: visible; }
+    #stage { min-height: 50vh; }
+    header { padding: 10px; flex-direction: column; align-items: flex-start; gap: 6px; }
+    #panel { border-left: none; border-top: 1px solid var(--panel-border); padding: 12px; }
+    body { overflow-y: auto; }
+    /* Show mobile warning initially on unrotated mobile load (portrait mode on small screens) */
+    @media (orientation: portrait) {
+      #mobile-warning { display: flex; }
+    }
+  }
 </style>
 </head>
 <body>
+  <div id="mobile-warning">
+    <h2>Device Optimization</h2>
+    <p>For the best futuristic pathfinding experience, please rotate your device to landscape or use a larger screen.</p>
+    <button onclick="document.getElementById('mobile-warning').style.display='none'">I Understand</button>
+  </div>
+  
+  <div id="toast-container"></div>
+
   <header>
-    <h1>Multi‑Method Shortest Path Visualizer</h1>
-    <span class="pill">Dijkstra • Bellman‑Ford • Floyd‑Warshall</span>
-    <span class="pill">Weighted • Directed/Undirected • Negative edges (BF/FW)</span>
+    <h1>Neon PathVisualizer</h1>
+    <div class="row" style="margin:0;">
+      <span class="pill">A* Search</span>
+      <span class="pill">Dijkstra</span>
+      <span class="pill">Bellman‑Ford</span>
+      <span class="pill">Floyd‑Warshall</span>
+    </div>
   </header>
   <main>
     <section id="stage">
       <canvas id="canvas"></canvas>
     </section>
     <aside id="panel">
-      <div class="section">
+      <div class="section glass" style="padding: 12px; margin-bottom: 16px;">
         <div class="row">
-          <button class="mode-btn" data-mode="delete-edge">Delete Edge</button>
-          <button class="mode-btn" data-mode="update-edge">Update Edge</button>
           <button class="mode-btn" data-mode="add-node">Add Node</button>
           <button class="mode-btn" data-mode="add-edge">Add Edge</button>
           <button class="mode-btn" data-mode="move">Move</button>
-          <button id="btn-clear" class="ghost" title="Clear graph">Clear</button>
+          <button class="mode-btn" data-mode="update-edge">Update Edge</button>
+          <button class="mode-btn" data-mode="delete-edge">Delete Edge</button>
+          <button id="btn-clear" class="warn" style="margin-left:auto;">Clear</button>
         </div>
         <div class="row">
-          <label class="badge">Graph</label>
-          <label><input type="checkbox" id="directed" /> Directed</label>
-          <span class="note">Dijkstra requires non‑negative weights.</span>
+          <label style="margin-right: 10px; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="directed" style="width:auto;" /> Directed Graph</label>
         </div>
-        <div class="row legend">
-          <span class="dot src"></span> source
-          <span class="dot dst"></span> target
-          <span class="dot path"></span> shortest path
-          <span class="dot neg"></span> negative edge
+        <div class="legend">
+          <span class="dot src"></span> Source
+          <span class="dot dst"></span> Target
+          <span class="dot path"></span> Shortest Path
+          <span class="dot neg"></span> Negative Edge
         </div>
       </div>
 
       <div class="section">
         <div class="row">
-          <label>Source</label>
-          <select id="source"></select>
+          <div style="flex:1;">
+            <label>Source</label>
+            <select id="source"></select>
+          </div>
+          <div style="flex:1;">
+            <label>Target</label>
+            <select id="target"></select>
+          </div>
         </div>
-        <div class="row">
-          <label>Target</label>
-          <select id="target"></select>
+        <div class="row" style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <button id="run-astar" class="algo-btn primary">Run A*</button>
+          <button id="run-dijkstra" class="algo-btn">Run Dijkstra</button>
+          <button id="run-bf" class="algo-btn">Run Bellman‑Ford</button>
+          <button id="run-fw" class="algo-btn">Run Floyd‑Warshall</button>
         </div>
-        <div class="row">
-          <button id="run-dijkstra">Run Dijkstra</button>
-          <button id="run-bf">Run Bellman‑Ford</button>
-          <button id="run-fw">Run Floyd‑Warshall</button>
-        </div>
-        <div class="row">
-          <button id="btn-compare" class="primary">Compare All</button>
-          <button id="btn-sample" class="warn" title="Generate a demo graph">Load Sample</button>
+        <div class="row" style="margin-top:10px;">
+          <button id="btn-compare" class="primary" style="flex:1;">Compare All</button>
+          <select id="sel-sample" class="warn" style="flex:1;">
+            <option value="" disabled selected>Load Sample...</option>
+            <option value="1">Graph 1 (Negative Edge)</option>
+            <option value="2">Grid Maze (A* Demo)</option>
+            <option value="3">Complex Network</option>
+          </select>
         </div>
         <div class="kpis">
           <div class="kpi">
-            <div class="label">Result Distance</div>
+            <div class="label">Distance</div>
             <div id="kpi-dist" class="value">–</div>
           </div>
           <div class="kpi">
@@ -117,92 +189,84 @@
             <div id="kpi-time" class="value">–</div>
           </div>
         </div>
-        <div class="row">
-          <div id="msg" class="note"></div>
-        </div>
       </div>
 
       <div class="section">
         <details open>
-          <summary><strong>Path Output</strong></summary>
-          <div id="path-output" class="row" style="margin-top:8px; word-break: break-word;"></div>
+          <summary>Result Summary</summary>
+          <div id="path-output" style="margin-top:10px; font-size:13px; color:var(--muted); word-break: break-word;">
+            Run an algorithm to see the path.
+          </div>
         </details>
       </div>
 
       <div class="section">
         <details>
-          <summary><strong>Complexities</strong></summary>
+          <summary>Algorithm Complexities</summary>
           <table class="table">
-            <thead><tr><th>Algorithm</th><th>Time</th><th>Space</th><th>Notes</th></tr></thead>
+            <thead><tr><th>Algorithm</th><th>Time</th><th>Space</th></tr></thead>
             <tbody>
-              <tr><td>Dijkstra (binary heap)</td><td>O((V+E) log V)</td><td>O(V+E)</td><td>No negative edges</td></tr>
-              <tr><td>Bellman‑Ford</td><td>O(V·E)</td><td>O(V)</td><td>Detects negative cycles</td></tr>
-              <tr><td>Floyd‑Warshall</td><td>O(V³)</td><td>O(V²)</td><td>All‑pairs; detects negative cycles</td></tr>
+              <tr><td>A* Search</td><td>O(E)</td><td>O(V)</td></tr>
+              <tr><td>Dijkstra</td><td>O((V+E) log V)</td><td>O(V+E)</td></tr>
+              <tr><td>Bellman‑Ford</td><td>O(V·E)</td><td>O(V)</td></tr>
+              <tr><td>Floyd‑Warshall</td><td>O(V³)</td><td>O(V²)</td></tr>
             </tbody>
           </table>
-          <p class="foot">Tip: For dense graphs or when you need all‑pairs shortest paths, Floyd‑Warshall shines. For sparse graphs with non‑negative weights, Dijkstra is fast. Use Bellman‑Ford for graphs with possible negative edges (but no negative cycles).</p>
-        </details>
-      </div>
-
-      <div class="section">
-        <details>
-          <summary><strong>Adjacency</strong> (click to view)</summary>
-          <pre id="adj-out" style="max-height:160px; overflow:auto;"></pre>
-        </details>
-      </div>
-
-      <div class="section">
-        <details>
-          <summary><strong>How to use</strong></summary>
-          <ol class="foot">
-            <li>Select a mode: <em>Add Node</em> (click canvas), <em>Add Edge</em> (click node A then node B, enter weight), <em>Move</em> (drag nodes).</li>
-            <li>Toggle <em>Directed</em> as needed (affects new edges).</li>
-            <li>Pick <em>Source</em> and <em>Target</em>, then run an algorithm or <em>Compare All</em>.</li>
-            <li>Negative edges are shown in red; Dijkstra will refuse them.</li>
-          </ol>
+          <div style="margin-top:8px; font-size:11px; color:#5c688c; line-height: 1.4;">
+            <strong>A*:</strong> Uses Euclidean distance heuristic. Fast for spatial grids.<br>
+            <strong>Dijkstra:</strong> Good all-rounder. Refuses negative weights.<br>
+            <strong>Bellman-Ford:</strong> Handles negative weights. Detects negative cycles.<br>
+            <strong>Floyd-Warshall:</strong> All-pairs shortest path. Heavy runtime on large networks.
+          </div>
         </details>
       </div>
     </aside>
   </main>
 
+<script src="algorithms.js"></script>
 <script>
-/* ====== Graph Model ====== */
+/* ====== App State ====== */
 const state = {
   nodes: [],             // {id, x, y}
   edges: [],             // {u, v, w, directed}
   directed: false,
-  mode: 'add-node',      // add-node | add-edge | move
+  mode: 'add-node',
   nextNodeId: 0,
-  pendingEdge: null,     // {u}
-  dragging: null,        // {id, dx, dy}
-  selection: { src: null, dst: null },
-  highlightPath: [],     // [ids]
-  highlightEdges: new Set(), // key "u->v"
+  pendingEdge: null,
+  dragging: null,
+  highlightPath: [],
+  highlightEdges: new Set(),
 };
 
-/* ====== DOM ====== */
+/* ====== DOM Elements ====== */
 const canvas = document.getElementById('canvas');
 const stage = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
 
 const selSource = document.getElementById('source');
 const selTarget = document.getElementById('target');
-const msg = document.getElementById('msg');
 const kpiDist = document.getElementById('kpi-dist');
 const kpiTime = document.getElementById('kpi-time');
-const adjOut = document.getElementById('adj-out');
+const pathOutput = document.getElementById('path-output');
+const btnClear = document.getElementById('btn-clear');
+const selSample = document.getElementById('sel-sample');
+const chkDirected = document.getElementById('directed');
 
 const modeButtons = [...document.querySelectorAll('.mode-btn')];
-const btnClear = document.getElementById('btn-clear');
-const btnSample = document.getElementById('btn-sample');
-const btnRunD = document.getElementById('run-dijkstra');
-const btnRunB = document.getElementById('run-bf');
-const btnRunF = document.getElementById('run-fw');
-const btnCompare = document.getElementById('btn-compare');
-const chkDirected = document.getElementById('directed');
-const pathOutput = document.getElementById('path-output');
 
-/* ====== Canvas Setup ====== */
+/* ====== UI Helpers ====== */
+function showToast(message, type = 'ok') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('hiding');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
 function resizeCanvas() {
   const rect = stage.getBoundingClientRect();
   canvas.width = rect.width;
@@ -210,14 +274,13 @@ function resizeCanvas() {
   draw();
 }
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+// Call directly once for initial size before DOM content load isn't necessary here since script is at bottom
+resizeCanvas(); 
 
-/* ====== UI Helpers ====== */
 function setMode(m) {
   state.mode = m;
   modeButtons.forEach(b => b.classList.toggle('active', b.dataset.mode === m));
   state.pendingEdge = null;
-  setMessage('');
 }
 modeButtons.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 setMode('add-node');
@@ -228,28 +291,202 @@ chkDirected.addEventListener('change', () => {
 });
 
 btnClear.addEventListener('click', () => {
-  Object.assign(state, {
-    nodes: [], edges: [], nextNodeId: 0, pendingEdge: null,
-    selection: {src:null, dst:null}, highlightPath:[], highlightEdges:new Set()
-  });
+  state.nodes = []; state.edges = []; state.nextNodeId = 0;
+  state.pendingEdge = null; state.highlightPath = []; state.highlightEdges = new Set();
   refreshSelectors();
-  updateAdj();
   draw();
-  setMessage('Cleared.');
+  showToast('Graph cleared.');
+  pathOutput.innerHTML = 'Graph cleared ready for new visualization.';
+  updateKpis(null, null);
 });
 
-btnSample.addEventListener('click', loadSample);
+/* ====== Drawing Engine ====== */
+function draw() {
+  const { width, height } = canvas;
+  ctx.clearRect(0, 0, width, height);
 
-function setMessage(text, type='') {
-  msg.textContent = text;
-  msg.className = type || 'note';
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  for (const e of state.edges) drawEdge(e);
+  for (const n of state.nodes) drawNode(n);
 }
 
-function updateKpis(dist=null, ms=null) {
-  kpiDist.textContent = (dist == null || Number.isNaN(dist)) ? '–' : String(dist);
-  kpiTime.textContent = (ms == null) ? '–' : ms.toFixed(2);
+function getNode(id) { return state.nodes.find(n => n.id == id); }
+function labelOf(id) { return `v${id}`; }
+function edgeKey(u, v) { return `${u}->${v}`; }
+
+function drawNode(n) {
+  const r = 16;
+  const isSrc = String(selSource.value) === String(n.id);
+  const isDst = String(selTarget.value) === String(n.id);
+  const isPath = state.highlightPath.includes(n.id);
+
+  ctx.save();
+  if (isSrc || isDst || isPath) {
+    ctx.beginPath(); ctx.arc(n.x, n.y, r + 4, 0, Math.PI * 2);
+    ctx.shadowBlur = 15;
+    if (isPath) { ctx.shadowColor = '#39ff14'; ctx.fillStyle = 'rgba(57,255,20,0.2)'; }
+    else if (isSrc) { ctx.shadowColor = '#00e5ff'; ctx.fillStyle = 'rgba(0,229,255,0.2)'; }
+    else if (isDst) { ctx.shadowColor = '#ff00ea'; ctx.fillStyle = 'rgba(255,0,234,0.2)'; }
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#0f1423'; 
+  ctx.fill();
+  ctx.lineWidth = 2; 
+  ctx.strokeStyle = isSrc ? '#00e5ff' : isDst ? '#ff00ea' : isPath ? '#39ff14' : '#4a5b82'; 
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '12px Inter, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(labelOf(n.id), n.x, n.y);
+  ctx.restore();
 }
 
+function drawEdge(e) {
+  const A = getNode(e.u), B = getNode(e.v);
+  if (!A || !B) return;
+
+  const dx = B.x - A.x, dy = B.y - A.y;
+  const ang = Math.atan2(dy, dx);
+  const r = 16;
+
+  const start = { x: A.x + Math.cos(ang) * r, y: A.y + Math.sin(ang) * r };
+  const end   = { x: B.x - Math.cos(ang) * r, y: B.y - Math.sin(ang) * r };
+
+  const isDouble = !state.directed && state.edges.some(ee => ee !== e && ee.directed === false && ((ee.u === e.u && ee.v === e.v) || (ee.u === e.v && ee.v === e.u)));
+  // Edge cases handled by users, not visualized specially unless needed
+
+  const isOnPath = state.highlightEdges.has(edgeKey(e.u, e.v));
+  const neg = e.w < 0;
+  
+  ctx.save();
+  ctx.shadowBlur = isOnPath ? 10 : 0;
+  ctx.shadowColor = isOnPath ? '#39ff14' : 'transparent';
+
+  ctx.strokeStyle = isOnPath ? '#39ff14' : (neg ? '#ff3366' : '#42528a');
+  ctx.lineWidth = isOnPath ? 3 : 1.5;
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
+
+  if (e.directed) {
+    const arrL = 10, arrW = 5;
+    ctx.beginPath();
+    ctx.moveTo(end.x, end.y);
+    ctx.lineTo(end.x - arrL*Math.cos(ang) + arrW*Math.sin(ang), end.y - arrL*Math.sin(ang) - arrW*Math.cos(ang));
+    ctx.lineTo(end.x - arrL*Math.cos(ang) - arrW*Math.sin(ang), end.y - arrL*Math.sin(ang) + arrW*Math.cos(ang));
+    ctx.closePath();
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0; 
+
+  const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  ctx.font = 'bold 12px Inter, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  
+  const textWidth = ctx.measureText(e.w).width;
+  ctx.fillStyle = 'rgba(9,11,20,0.85)';
+  ctx.fillRect(mid.x - textWidth/2 - 2, mid.y - 14, textWidth + 4, 14);
+  
+  ctx.fillStyle = isOnPath ? '#baffb5' : (neg ? '#ffbaba' : '#b2c0e6');
+  ctx.fillText(e.w, mid.x, mid.y - 2);
+  ctx.restore();
+}
+
+/* ====== Interaction ====== */
+function nodeAt(x, y) {
+  return state.nodes.find(n => Math.hypot(n.x - x, n.y - y) <= 16);
+}
+
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+
+  if (state.mode === 'add-node') {
+    const id = state.nextNodeId++;
+    state.nodes.push({ id, x, y });
+    refreshSelectors(); draw();
+  } 
+  else if (state.mode === 'add-edge') {
+    const n = nodeAt(x, y);
+    if (!n) return;
+    if (!state.pendingEdge) {
+      state.pendingEdge = { u: n.id };
+      showToast(`Selected ${labelOf(n.id)}. Select target node.`, 'warn');
+    } else {
+      const u = state.pendingEdge.u, v = n.id;
+      if (u === v) { showToast('Self‑loop ignored.', 'err'); state.pendingEdge = null; return; }
+      const w = prompt('Edge weight:', '1');
+      if (w === null) { state.pendingEdge = null; return; }
+      const weight = Number(w);
+      if (!Number.isFinite(weight)) { showToast('Invalid weight.', 'err'); state.pendingEdge = null; return; }
+      if (state.edges.some(e => e.u === u && e.v === v && e.directed === state.directed)) {
+        showToast('Edge already exists.', 'err'); state.pendingEdge = null; return;
+      }
+      state.edges.push({ u, v, w: weight, directed: state.directed });
+      state.pendingEdge = null;
+      draw();
+      showToast('Edge added.');
+    }
+  }
+  else if (state.mode === 'delete-edge') {
+    const n = nodeAt(x, y);
+    if (!n) return;
+    if (!state.pendingEdge) {
+      state.pendingEdge = { u: n.id };
+      showToast(`Selected ${labelOf(n.id)}. Select other node to delete edge.`, 'warn');
+    } else {
+      const u = state.pendingEdge.u, v = n.id;
+      if (u === v) { state.pendingEdge = null; return; }
+      const before = state.edges.length;
+      state.edges = state.edges.filter(e => !(e.u === u && e.v === v) && !(!e.directed && e.u === v && e.v === u));
+      if (before > state.edges.length) { showToast('Edge deleted.'); draw(); }
+      else showToast('No such edge found.', 'err');
+      state.pendingEdge = null;
+    }
+  }
+  else if (state.mode === 'update-edge') {
+    const n = nodeAt(x, y);
+    if (!n) return;
+    if (!state.pendingEdge) {
+      state.pendingEdge = { u: n.id };
+      showToast(`Selected ${labelOf(n.id)}. Select other node.`, 'warn');
+    } else {
+      const u = state.pendingEdge.u, v = n.id;
+      const edge = state.edges.find(e => (e.u === u && e.v === v) || (!e.directed && e.u === v && e.v === u));
+      if (!edge) { showToast('No such edge exists.', 'err'); state.pendingEdge = null; return; }
+      const w = prompt('New weight:', edge.w);
+      if (w !== null && Number.isFinite(Number(w))) {
+        edge.w = Number(w); showToast('Edge updated.'); draw();
+      }
+      state.pendingEdge = null;
+    }
+  }
+  else if (state.mode === 'move') {
+    const n = nodeAt(x, y);
+    if (n) state.dragging = { id: n.id, dx: x - n.x, dy: y - n.y };
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (!state.dragging) return;
+  const rect = canvas.getBoundingClientRect();
+  const n = getNode(state.dragging.id);
+  n.x = (e.clientX - rect.left) - state.dragging.dx; 
+  n.y = (e.clientY - rect.top) - state.dragging.dy;
+  draw();
+});
+
+window.addEventListener('mouseup', () => state.dragging = null);
+
+/* ====== Integration ====== */
 function refreshSelectors() {
   function fill(sel) {
     const cur = sel.value;
@@ -264,546 +501,233 @@ function refreshSelectors() {
   fill(selSource); fill(selTarget);
 }
 
-function labelOf(id){ return `v${id}`; }
+selSource.addEventListener('change', draw);
+selTarget.addEventListener('change', draw);
 
-function updateAdj() {
-  const V = state.nodes.length;
-  const idToIdx = new Map(state.nodes.map((n,i)=>[n.id,i]));
-  const M = Array.from({length:V}, ()=> Array(V).fill('∞'));
-  state.edges.forEach(e=>{
-    const i = idToIdx.get(e.u), j=idToIdx.get(e.v);
-    M[i][j] = e.w;
-    if (!e.directed) M[j][i] = e.w;
-  });
-  let out = 'Adjacency (∞ = no edge)\n     ' + state.nodes.map(n=>labelOf(n.id).padEnd(5)).join(' ') + '\n';
-  M.forEach((row,i)=>{
-    out += (labelOf(state.nodes[i].id)+' ').padEnd(5) + row.map(x=>String(x).padEnd(5)).join(' ') + '\n';
-  });
-  adjOut.textContent = out;
-}
-
-/* ====== Drawing ====== */
-function draw() {
-  const {width, height} = canvas;
-  ctx.clearRect(0,0,width,height);
-
-  // Edges
-  for (const e of state.edges) drawEdge(e);
-
-  // Nodes
-  for (const n of state.nodes) drawNode(n);
-}
-
-function drawNode(n){
-  const r = 16;
-  // halo if in highlight path
-  if (state.highlightPath.includes(n.id)) {
-    ctx.beginPath(); ctx.arc(n.x,n.y,r+6,0,Math.PI*2);
-    ctx.fillStyle = 'rgba(108,198,68,0.18)'; ctx.fill();
-  }
-  ctx.beginPath(); ctx.arc(n.x,n.y,r,0,Math.PI*2);
-  ctx.fillStyle = '#0d1228'; ctx.fill();
-  ctx.lineWidth = 2; ctx.strokeStyle = '#3a4a80'; ctx.stroke();
-
-  // source/target colors
-  let ring = null;
-  if (String(selSource.value) === String(n.id)) ring = '#4a90ff';
-  if (String(selTarget.value) === String(n.id)) ring = '#ff8a3d';
-  if (ring){
-    ctx.beginPath(); ctx.arc(n.x,n.y,r+2,0,Math.PI*2);
-    ctx.strokeStyle = ring; ctx.lineWidth = 3; ctx.stroke();
-  }
-
-  ctx.fillStyle = '#e8ecf4';
-  ctx.font = '12px system-ui';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(labelOf(n.id), n.x, n.y);
-}
-
-function edgeKey(u,v){ return `${u}->${v}`; }
-
-function drawEdge(e){
-  const A = getNode(e.u), B = getNode(e.v);
-  if (!A || !B) return;
-
-  const dx = B.x - A.x, dy = B.y - A.y;
-  const ang = Math.atan2(dy, dx);
-  const len = Math.hypot(dx, dy);
-  const r = 16;
-
-  const start = { x: A.x + Math.cos(ang)*r, y: A.y + Math.sin(ang)*r };
-  const end   = { x: B.x - Math.cos(ang)*r, y: B.y - Math.sin(ang)*r };
-
-  const isOnPath = state.highlightEdges.has(edgeKey(e.u,e.v));
-  const neg = e.w < 0;
-  ctx.strokeStyle = isOnPath ? '#6cc644' : (neg ? '#ff5d5d' : '#9aa3bd');
-  ctx.lineWidth = isOnPath ? 3 : 1.5;
-  ctx.beginPath();
-  ctx.moveTo(start.x, start.y);
-  ctx.lineTo(end.x, end.y);
-  ctx.stroke();
-
-  // arrow for directed
-  if (e.directed){
-    const arrowLen = 9, arrowW = 5;
-    ctx.beginPath();
-    ctx.moveTo(end.x, end.y);
-    ctx.lineTo(end.x - arrowLen*Math.cos(ang) + arrowW*Math.sin(ang),
-               end.y - arrowLen*Math.sin(ang) - arrowW*Math.cos(ang));
-    ctx.lineTo(end.x - arrowLen*Math.cos(ang) - arrowW*Math.sin(ang),
-               end.y - arrowLen*Math.sin(ang) + arrowW*Math.cos(ang));
-    ctx.closePath();
-    ctx.fillStyle = ctx.strokeStyle;
-    ctx.fill();
-  }
-
-  // weight label
-  const mid = { x: (start.x+end.x)/2, y: (start.y+end.y)/2 };
-  ctx.fillStyle = isOnPath ? '#a8e4a8' : (neg ? '#ffb7b7' : '#d6dcf1');
-  ctx.font = '12px system-ui';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText(e.w, mid.x, mid.y - 3);
-}
-
-function getNode(id){ return state.nodes.find(n=>n.id==id); }
-
-function nodeAt(x,y){
-  return state.nodes.find(n => Math.hypot(n.x-x, n.y-y) <= 16);
-}
-
-
-
-/* ====== Canvas Interaction ====== */
-canvas.addEventListener('mousedown', e=>{
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left, y = e.clientY - rect.top;
-
-  if (state.mode === 'add-node') {
-    const id = state.nextNodeId++;
-    state.nodes.push({id,x,y});
-    refreshSelectors(); updateAdj(); draw();
-  } else if (state.mode === 'add-edge') {
-    const n = nodeAt(x,y);
-    if (!n) return;
-    if (!state.pendingEdge) {
-      state.pendingEdge = {u:n.id};
-      setMessage(`Select second node to connect from ${labelOf(n.id)}…`);
-    } else {
-      const u = state.pendingEdge.u, v = n.id;
-      if (u === v) { setMessage('Self‑loop ignored.'); state.pendingEdge=null; return; }
-      const w = prompt('Edge weight (number):', '1');
-      if (w === null) { state.pendingEdge = null; return; }
-      const weight = Number(w);
-      if (!Number.isFinite(weight)) { setMessage('Invalid weight.', 'err'); state.pendingEdge=null; return; }
-      // prevent duplicate exact edge
-      if (state.edges.some(e=>e.u===u && e.v===v && e.directed===state.directed)) {
-        setMessage('Edge already exists.'); state.pendingEdge = null; return;
-      }
-      state.edges.push({u, v, w: weight, directed: state.directed});
-      state.pendingEdge = null;
-      updateAdj(); draw();
-      setMessage('Edge added.');
-    }
-  }
-
-    else if (state.mode === 'delete-edge') {
-        const n = nodeAt(x,y);
-        if (!n) return;
-        if (!state.pendingEdge) {
-          state.pendingEdge = {u: n.id};
-          setMessage(`Select second node to remove edge from ${labelOf(n.id)}…`);
-        } else {
-          const u = state.pendingEdge.u, v = n.id;
-          if (u === v) { state.pendingEdge = null; setMessage('Cancelled.'); return; }
-          // Remove both directed and undirected cases
-          const before = state.edges.length;
-          state.edges = state.edges.filter(e => !(e.u===u && e.v===v) && !( !e.directed && e.u===v && e.v===u ));
-          const removed = before - state.edges.length;
-          state.pendingEdge = null;
-          if (removed > 0) {
-            setMessage('Edge deleted.', 'ok');
-            updateAdj(); draw();
-          } else {
-            setMessage('No such edge found.', 'err');
-          }
-        }
-      }
-
-    else if (state.mode === 'update-edge') {
-      const n = nodeAt(x,y);
-      if (!n) return;
-      if (!state.pendingEdge) {
-        state.pendingEdge = {u: n.id};
-        setMessage(`Select second node to update edge from ${labelOf(n.id)}…`);
-      } else {
-        const u = state.pendingEdge.u, v = n.id;
-        const edge = state.edges.find(e => (e.u===u && e.v===v) || (!e.directed && e.u===v && e.v===u));
-        if (!edge) { setMessage('No such edge exists.', 'err'); state.pendingEdge=null; return; }
-        const w = prompt('New weight:', edge.w);
-        if (w === null) { state.pendingEdge=null; return; }
-        const weight = Number(w);
-        if (!Number.isFinite(weight)) { setMessage('Invalid weight.', 'err'); state.pendingEdge=null; return; }
-        edge.w = weight;
-        state.pendingEdge = null;
-        setMessage('Edge weight updated.', 'ok');
-        updateAdj(); draw();
-      }
-    }
-
-  
-    else if (state.mode === 'move') {
-    const n = nodeAt(x,y);
-    if (n) {
-      state.dragging = { id: n.id, dx: x-n.x, dy: y-n.y };
-    }
-  }
-});
-
-canvas.addEventListener('mousemove', e=>{
-  if (!state.dragging) return;
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left, y = e.clientY - rect.top;
-  const n = getNode(state.dragging.id);
-  n.x = x - state.dragging.dx; n.y = y - state.dragging.dy;
-  draw();
-});
-
-window.addEventListener('mouseup', ()=> state.dragging = null);
-
-/* ====== Algorithms ====== */
-// Priority queue (binary heap)
-class MinHeap {
-  constructor(){ this.a=[]; }
-  push(item){ this.a.push(item); this._up(this.a.length-1); }
-  _up(i){ const a=this.a; while(i>0){ const p=(i-1)>>1; if(a[p].key<=a[i].key) break; [a[p],a[i]]=[a[i],a[p]]; i=p; } }
-  pop(){ const a=this.a; if(a.length===0) return null; const top=a[0]; const last=a.pop(); if(a.length){ a[0]=last; this._down(0); } return top; }
-  _down(i){ const a=this.a; const n=a.length; while(true){ let l=i*2+1, r=l+1, s=i; if(l<n && a[l].key<a[s].key) s=l; if(r<n && a[r].key<a[s].key) s=r; if(s===i) break; [a[s],a[i]]=[a[i],a[s]]; i=s; } }
-  get size(){ return this.a.length; }
-}
-
-function buildAdjList() {
-  const adj = new Map(); state.nodes.forEach(n=>adj.set(n.id, []));
-  for (const e of state.edges) {
-    adj.get(e.u).push({to: e.v, w: e.w});
-    if (!e.directed) adj.get(e.v).push({to: e.u, w: e.w});
-  }
-  return adj;
-}
-
-function hasNegativeEdge() { return state.edges.some(e => e.w < 0); }
-
-function dijkstra(sourceId) {
-  if (hasNegativeEdge()) return {error:'Dijkstra cannot handle negative edge weights.'};
-  const adj = buildAdjList();
-  const dist = new Map(), prev = new Map();
-  state.nodes.forEach(n=>dist.set(n.id, Infinity));
-  dist.set(sourceId, 0);
-  const heap = new MinHeap();
-  heap.push({key:0, id:sourceId});
-  while(heap.size){
-    const {key:d, id:u} = heap.pop();
-    if (d !== dist.get(u)) continue; // stale
-    for (const {to:v,w} of adj.get(u)) {
-      const nd = d + w;
-      if (nd < dist.get(v)) {
-        dist.set(v, nd); prev.set(v, u);
-        heap.push({key:nd, id:v});
-      }
-    }
-  }
-  return {dist, prev, negativeCycle:false};
-}
-
-function bellmanFord(sourceId) {
-  const V = state.nodes.map(n=>n.id);
-  const dist = new Map(V.map(id=>[id, Infinity]));
-  const prev = new Map();
-  dist.set(sourceId, 0);
-
-  const edges = [];
-  for (const e of state.edges) {
-    edges.push([e.u, e.v, e.w]);
-    if (!e.directed) edges.push([e.v, e.u, e.w]);
-  }
-
-  for (let i=0;i<V.length-1;i++) {
-    let updated=false;
-    for (const [u,v,w] of edges) {
-      if (dist.get(u) + w < dist.get(v)) {
-        dist.set(v, dist.get(u) + w);
-        prev.set(v, u);
-        updated=true;
-      }
-    }
-    if (!updated) break;
-  }
-
-  // Negative cycle detection
-  for (const [u,v,w] of edges) {
-    if (dist.get(u) + w < dist.get(v)) {
-      return {error:'Negative cycle reachable from source.', negativeCycle:true};
-    }
-  }
-  return {dist, prev, negativeCycle:false};
-}
-
-function floydWarshall() {
-  const ids = state.nodes.map(n=>n.id);
-  const idx = new Map(ids.map((id,i)=>[id,i]));
-  const n = ids.length;
-  const dist = Array.from({length:n}, (_,i)=> Array(n).fill(Infinity));
-  const next = Array.from({length:n}, ()=> Array(n).fill(null));
-  for (let i=0;i<n;i++){ dist[i][i]=0; }
-
-  for (const e of state.edges) {
-    const i = idx.get(e.u), j = idx.get(e.v);
-    dist[i][j] = Math.min(dist[i][j], e.w);
-    next[i][j] = j;
-    if (!e.directed) {
-      dist[j][i] = Math.min(dist[j][i], e.w);
-      next[j][i] = i;
-    }
-  }
-
-  for (let k=0;k<n;k++){
-    for (let i=0;i<n;i++){
-      const dik = dist[i][k];
-      if (dik === Infinity) continue;
-      for (let j=0;j<n;j++){
-        const alt = dik + dist[k][j];
-        if (alt < dist[i][j]) {
-          dist[i][j] = alt;
-          next[i][j] = next[i][k];
-        }
-      }
-    }
-  }
-
-  // Negative cycle detection: dist[i][i] < 0 for any i means a cycle.
-  let negCycle = false;
-  for (let i=0;i<n;i++){ if (dist[i][i] < 0) { negCycle = true; break; } }
-
-  function path(uId, vId){
-    if (next.length===0) return [];
-    const i = idx.get(uId), j = idx.get(vId);
-    if (i==null || j==null) return [];
-    if (next[i][j] == null) return [];
-    const p = [i];
-    let cur = i;
-    while (cur !== j) {
-      cur = next[cur][j];
-      if (cur == null) return [];
-      p.push(cur);
-      if (p.length > n+5) break; // guard
-    }
-    return p.map(k=>ids[k]);
-  }
-
-  return {dist, path, ids, negCycle};
-}
-
-/* ====== Path Utilities ====== */
-function reconstructPath(prev, s, t){
-  const path = [];
-  let cur = t;
-  if (!prev && s===t) return [s];
-  const visited = new Set();
-  while (cur != null && cur !== s) {
-    if (visited.has(cur)) break; // guard
-    visited.add(cur);
-    path.push(cur);
-    cur = prev.get(cur);
-  }
-  if (cur === s) { path.push(s); path.reverse(); return path; }
-  return [];
+function updateKpis(dist, ms) {
+  kpiDist.textContent = (dist == null || Number.isNaN(dist) || dist === Infinity) ? '∞' : String(dist);
+  kpiTime.textContent = (ms == null) ? '–' : ms.toFixed(2);
 }
 
 function setHighlightFromPath(path) {
   state.highlightPath = path.slice();
   state.highlightEdges = new Set();
-  for (let i=0;i<path.length-1;i++){
+  for (let i = 0; i < path.length - 1; i++) {
     state.highlightEdges.add(edgeKey(path[i], path[i+1]));
   }
 }
 
-/* ====== Run Buttons ====== */
-btnRunD.addEventListener('click', ()=> runSingle('dijkstra'));
-btnRunB.addEventListener('click', ()=> runSingle('bf'));
-btnRunF.addEventListener('click', ()=> runSingle('fw'));
-btnCompare.addEventListener('click', compareAll);
-
-function getSrcDst(){
+function getSrcDst() {
   const s = Number(selSource.value), t = Number(selTarget.value);
   if (!Number.isFinite(s) || !Number.isFinite(t)) {
-    setMessage('Pick source and target.', 'err'); return null;
+    showToast('Please add nodes and select a Source and Target.', 'err'); return null;
   }
-  return {s,t};
+  return { s, t };
 }
 
-function runSingle(which){
-  const idsExist = state.nodes.length > 0;
-  if (!idsExist){ setMessage('Add some nodes first.', 'err'); return; }
-  const sd = getSrcDst(); if (!sd) return;
-  const {s,t} = sd;
-  let dist = Infinity, path = [], ms=0, note='';
-  if (which==='dijkstra') {
-    const t0=performance.now();
-    const out = dijkstra(s);
-    ms = performance.now()-t0;
-    if (out.error){ setMessage(out.error, 'err'); updateKpis(null, ms); highlightNone(); return; }
-    dist = out.dist.get(t);
-    path = reconstructPath(out.prev, s, t);
-    note = 'Dijkstra complete.';
-  } else if (which==='bf') {
-    const t0=performance.now();
-    const out = bellmanFord(s);
-    ms = performance.now()-t0;
-    if (out.error){ setMessage(out.error, 'err'); updateKpis(null, ms); highlightNone(); return; }
-    dist = out.dist.get(t);
-    path = reconstructPath(out.prev, s, t);
-    note = 'Bellman‑Ford complete.';
-  } else if (which==='fw') {
-    const t0=performance.now();
-    const out = floydWarshall();
-    ms = performance.now()-t0;
-    if (out.negCycle){ setMessage('Negative cycle detected (FW).', 'err'); updateKpis(null, ms); highlightNone(); return; }
-    const ids = out.ids;
-    const i = ids.indexOf(s), j = ids.indexOf(t);
-    dist = (i>=0 && j>=0) ? out.dist[i][j] : Infinity;
-    path = out.path(s,t);
-    note = 'Floyd‑Warshall (all‑pairs) complete.';
+function runSingle(which) {
+  // 1. UI FEEDBACK: Immediately update the button highlights
+  // We do this first so the user sees their click registered even if the graph is empty.
+  document.querySelectorAll('.algo-btn').forEach(b => b.classList.remove('primary'));
+  
+  const btnMap = {
+    'A*': 'run-astar',
+    'Dijkstra': 'run-dijkstra',
+    'Bellman-Ford': 'run-bf',
+    'Floyd-Warshall': 'run-fw'
+  };
+  
+  const targetBtnId = btnMap[which];
+  if (targetBtnId) {
+    document.getElementById(targetBtnId).classList.add('primary');
   }
 
-  if (!path.length || !Number.isFinite(dist)) {
-    setMessage('No path found.', 'err');
-    updateKpis(null, ms);
-    highlightNone();
-    renderPathOutput([], which, dist, ms);
+  // 2. VALIDATION: Check if we can actually run the math
+  if (state.nodes.length === 0) { 
+    showToast('Add some nodes first.', 'err'); 
+    return; 
+  }
+  
+  const sd = getSrcDst(); 
+  if (!sd) return;
+  const { s, t } = sd;
+
+  // 3. EXECUTION: Run the selected algorithm
+  let dist = Infinity, path = [], ms = 0, out = null;
+  const t0 = performance.now();
+
+  try {
+    if (which === 'A*') out = aStar(s, t, state.nodes, state.edges);
+    else if (which === 'Dijkstra') out = dijkstra(s, state.nodes, state.edges);
+    else if (which === 'Bellman-Ford') out = bellmanFord(s, state.nodes, state.edges);
+    else if (which === 'Floyd-Warshall') out = floydWarshall(state.nodes, state.edges);
+    
+    ms = performance.now() - t0;
+  } catch (e) {
+    console.error(e);
+    showToast(`Algorithm error: ${e.message}`, 'err');
+    return;
+  }
+
+  // 4. ERROR HANDLING: Check for internal algorithm errors (like negative cycles)
+  if (!out || out.error || out.negCycle) {
+    showToast(out?.error || 'Negative cycle detected.', 'err');
+    updateKpis(null, ms); 
+    state.highlightPath = []; 
+    state.highlightEdges.clear(); 
+    draw(); 
+    return;
+  }
+
+  // 5. PATH RECONSTRUCTION: Extract the result based on algorithm type
+  if (which === 'Floyd-Warshall') {
+    const ids = out.ids;
+    const i = ids.indexOf(s), j = ids.indexOf(t);
+    dist = (i >= 0 && j >= 0) ? out.dist[i][j] : Infinity;
+    path = out.path(s, t);
   } else {
-    setMessage(note, 'ok');
+    // Dijkstra, A*, and Bellman-Ford use a Map for distances and a 'prev' map
+    dist = out.dist instanceof Map ? out.dist.get(t) : out.dist[t];
+    path = reconstructPath(out.prev, s, t);
+  }
+
+  // 6. FINAL UI UPDATE: Render the path or show "No Path"
+  if (!path || path.length === 0 || !Number.isFinite(dist)) {
+    showToast(`No path found using ${which}.`, 'err');
+    updateKpis(null, ms); 
+    state.highlightPath = []; 
+    state.highlightEdges.clear(); 
+    draw();
+    pathOutput.innerHTML = `<strong>No path found</strong> using ${which}.`;
+  } else {
+    showToast(`${which} complete.`);
     updateKpis(dist, ms);
     setHighlightFromPath(path);
     draw();
-    renderPathOutput(path, which, dist, ms);
+    
+    const nicePath = path.map(id => labelOf(id)).join(' → ');
+    pathOutput.innerHTML = `
+      <strong>${which} Path:</strong> <span style="color:var(--path)">${nicePath}</span><br>
+      Distance: <code>${dist}</code> • Speed: <code>${ms.toFixed(2)}ms</code>
+    `;
   }
 }
 
-function compareAll(){
+document.getElementById('run-astar').addEventListener('click', () => runSingle('A*'));
+document.getElementById('run-dijkstra').addEventListener('click', () => runSingle('Dijkstra'));
+document.getElementById('run-bf').addEventListener('click', () => runSingle('Bellman-Ford'));
+document.getElementById('run-fw').addEventListener('click', () => runSingle('Floyd-Warshall'));
+
+document.getElementById('btn-compare').addEventListener('click', () => {
   const sd = getSrcDst(); if (!sd) return;
-  const {s,t} = sd;
-
+  const { s, t } = sd;
   const results = [];
+  const methods = [
+    { id: 'astar', name: 'A* Search', fn: () => aStar(s, t, state.nodes, state.edges) },
+    { id: 'dj', name: 'Dijkstra', fn: () => dijkstra(s, state.nodes, state.edges) },
+    { id: 'bf', name: 'Bellman-Ford', fn: () => bellmanFord(s, state.nodes, state.edges) },
+    { id: 'fw', name: 'Floyd-Warshall', fn: () => floydWarshall(state.nodes, state.edges) }
+  ];
 
-  // Dijkstra
-  let dj = {name:'Dijkstra', ok:false, dist:Infinity, path:[], ms:0, note:''};
-  const t0 = performance.now();
-  const djo = dijkstra(s);
-  dj.ms = performance.now()-t0;
-  if (!djo.error){ dj.ok=true; dj.dist=djo.dist.get(t); dj.path=reconstructPath(djo.prev,s,t); }
-  else { dj.note = djo.error; }
+  methods.forEach(m => {
+    let r = { name: m.name, ok: false, dist: Infinity, path: [], ms: 0, note: '' };
+    const t0 = performance.now();
+    const out = m.fn();
+    r.ms = performance.now() - t0;
+    
+    if (out.error || out.negCycle) { r.note = out.error || 'Negative cycle'; }
+    else if (m.id === 'fw') {
+      const ids = out.ids; const i = ids.indexOf(s), j = ids.indexOf(t);
+      r.ok = true; r.dist = (i >= 0 && j >= 0) ? out.dist[i][j] : Infinity; r.path = out.path(s, t);
+    } else {
+      r.ok = true; r.dist = out.dist.get(t); r.path = reconstructPath(out.prev, s, t);
+    }
+    if (r.ok && !Number.isFinite(r.dist)) r.ok = false;
+    results.push(r);
+  });
 
-  // Bellman-Ford
-  let bf = {name:'Bellman‑Ford', ok:false, dist:Infinity, path:[], ms:0, note:''};
-  const t1 = performance.now();
-  const bfo = bellmanFord(s);
-  bf.ms = performance.now()-t1;
-  if (!bfo.error){ bf.ok=true; bf.dist=bfo.dist.get(t); bf.path=reconstructPath(bfo.prev,s,t); }
-  else { bf.note = bfo.error; }
-
-  // Floyd‑Warshall
-  let fw = {name:'Floyd‑Warshall', ok:false, dist:Infinity, path:[], ms:0, note:''};
-  const t2 = performance.now();
-  const fwo = floydWarshall();
-  fw.ms = performance.now()-t2;
-  if (!fwo.negCycle) {
-    const ids = fwo.ids; const i=ids.indexOf(s), j=ids.indexOf(t);
-    fw.ok=true; fw.dist = (i>=0&&j>=0)? fwo.dist[i][j] : Infinity; fw.path = fwo.path(s,t);
-  } else { fw.note = 'Negative cycle detected.'; }
-
-  results.push(dj, bf, fw);
-
-  // Select a winner to highlight: smallest finite distance among ok
-  const candidates = results.filter(r=>r.ok && Number.isFinite(r.dist));
+  const candidates = results.filter(r => r.ok);
   if (candidates.length) {
-    const best = candidates.reduce((a,b)=> a.dist<=b.dist ? a : b);
-    setHighlightFromPath(best.path);
-    draw();
-    setMessage(`Compare: best distance = ${best.dist} by ${best.name}`, 'ok');
+    const best = candidates.reduce((a, b) => a.dist <= b.dist ? a : b);
+    setHighlightFromPath(best.path); draw();
+    showToast(`Compare best: distance ${best.dist} by ${best.name}`);
     updateKpis(best.dist, best.ms);
   } else {
-    highlightNone();
-    setMessage('Compare: no path found by any method.', 'err');
-    updateKpis(null, null);
+    showToast('No path found by any method.', 'err');
+    state.highlightPath = []; state.highlightEdges.clear(); draw(); updateKpis(null, null);
   }
 
-  // Render comparison table
-  renderCompare(results);
-}
-
-function highlightNone(){ state.highlightPath=[]; state.highlightEdges=new Set(); draw(); }
-
-function renderPathOutput(path, which, dist, ms){
-  const nice = path.map(id=>labelOf(id)).join(' → ');
   pathOutput.innerHTML = `
-    <div><strong>${which.toUpperCase()}</strong> path: ${path.length? nice : '<em>none</em>'}</div>
-    <div>Distance: <code>${Number.isFinite(dist) ? dist : '∞'}</code> • Runtime: <code>${ms.toFixed(2)} ms</code></div>
-  `;
-}
-
-function renderCompare(rows){
-  const html = `
     <table class="table">
-      <thead><tr><th>Algorithm</th><th>Status</th><th>Distance</th><th>Runtime (ms)</th><th>Notes</th></tr></thead>
+      <thead><tr><th>Algorithm</th><th>Dist</th><th>ms</th><th>Path</th></tr></thead>
       <tbody>
-        ${rows.map(r=>`
+        ${results.map(r => `
           <tr>
             <td>${r.name}</td>
-            <td>${r.ok ? 'OK' : '<span class="err">Fail</span>'}</td>
-            <td>${r.ok && Number.isFinite(r.dist) ? r.dist : '∞'}</td>
+            <td>${r.ok ? r.dist : '<span style="color:var(--err)">Fail</span>'}</td>
             <td>${r.ms.toFixed(2)}</td>
-            <td>${r.note || ''}</td>
+            <td style="font-size:10px">${r.ok ? r.path.map(id=>labelOf(id)).join('→') : r.note}</td>
           </tr>
         `).join('')}
       </tbody>
     </table>
   `;
-  pathOutput.innerHTML = html;
-}
+});
 
-/* ====== Sample Graph ====== */
-function loadSample(){
-  Object.assign(state, {
-    nodes: [], edges: [], nextNodeId: 0,
-    pendingEdge:null, selection:{src:null,dst:null}, highlightPath:[], highlightEdges:new Set()
-  });
+selSample.addEventListener('change', () => {
+  state.nodes = []; state.edges = []; state.nextNodeId = 0; state.highlightPath = []; state.highlightEdges.clear();
   const W = canvas.width, H = canvas.height;
-  const pts = [
-    [W*0.22, H*0.25],
-    [W*0.48, H*0.18],
-    [W*0.78, H*0.28],
-    [W*0.22, H*0.72],
-    [W*0.50, H*0.80],
-    [W*0.80, H*0.68],
-  ];
-  pts.forEach(([x,y])=> state.nodes.push({id: state.nextNodeId++, x, y}));
   const D = chkDirected.checked;
-  const add = (u,v,w)=> state.edges.push({u,v,w,directed:D});
-  // Mostly positive with one negative (to show BF/FW)
-  add(0,1,4); add(0,3,2); add(1,2,3); add(1,4,6);
-  add(3,4,2); add(4,5,2); add(2,5,1); add(3,1,1);
-  add(2,3,-2); // negative edge
-  refreshSelectors();
-  selSource.value = 0; selTarget.value = 5;
-  updateAdj();
+  const add = (u, v, w) => state.edges.push({ u, v, w, directed: D });
+  const val = selSample.value;
+  
+  if (val === '1') {
+    const pts = [[W*0.2, H*0.2], [W*0.5, H*0.1], [W*0.8, H*0.3], [W*0.2, H*0.8], [W*0.5, H*0.9], [W*0.8, H*0.7]];
+    pts.forEach(([x, y]) => state.nodes.push({ id: state.nextNodeId++, x, y }));
+    add(0,1,4); add(0,3,2); add(1,2,3); add(1,4,6);
+    add(3,4,2); add(4,5,2); add(2,5,1); add(3,1,1);
+    add(2,3,-2);
+    showToast('Loaded Graph 1: features a negative edge (2→3).');
+  } else if (val === '2') {
+    for(let r=0; r<3; r++){
+      for(let c=0; c<3; c++){
+        state.nodes.push({ id: state.nextNodeId++, x: W*0.3 + c*100, y: H*0.2 + r*100 });
+      }
+    }
+    for(let r=0; r<3; r++){
+      for(let c=0; c<3; c++){
+        const id = r*3 + c;
+        if (c < 2) add(id, id+1, 1);
+        if (r < 2) add(id, id+3, 1);
+        if (c < 2 && r < 2 && Math.random()>0.5) add(id, id+4, 1.5);
+      }
+    }
+    if(state.edges.length > 5) state.edges.splice(3, 1);
+    showToast('Loaded Graph 2: 3x3 Spatial Grid (great for A*).');
+  } else if (val === '3') {
+    const count = 7;
+    for(let i=0; i<count; i++){
+      state.nodes.push({ id: state.nextNodeId++, x: W*0.2 + Math.random()*(W*0.6), y: H*0.2 + Math.random()*(H*0.6) });
+    }
+    for(let i=0; i<count; i++){
+      for(let j=i+1; j<count; j++){
+        if (Math.random() > 0.4) {
+          add(i, j, Math.floor(Math.random()*10)+1);
+        }
+      }
+    }
+    showToast('Loaded Graph 3: Dense Network.');
+  }
+
+  refreshSelectors(); 
+  if(selSource.options.length > 0) { selSource.value = 0; selTarget.value = state.nodes.length - 1; }
   draw();
-  setMessage('Sample graph loaded. Note the red negative edge (2→3 = -2).');
-}
+  selSample.value = ''; // reset select
+});
 
 /* ====== Init ====== */
-function init(){
-  state.directed = false;
-  chkDirected.checked = false;
-  updateAdj();
+function init() {
+  state.directed = false; chkDirected.checked = false;
   draw();
 }
 init();
