@@ -27,8 +27,5 @@ This is a standard client-side zero-dependency framework application.
 - `index.html`: Handles the full CSS grid responsive UI layout, the Canvas API rendering logic, and the UI-interaction layer.
 - `algorithms.js`: A structurally decoupled pure-logic graph module processing arrays of nodes and edges without DOM reliance.
 
-## Device Optimization 
+## Device Optimization 📱
 The engine evaluates the window space and re-orients the CSS grid vertically to stack components cleanly on mobile screens. It natively includes responsive overlay alerts suggesting landscape-device rotation whenever it's optimal.
-
-🤝 Contributing
-Feel free to fork this project and submit a Pull Request. Improvements to the UI or adding new algorithms (like Bellman-Ford or Swarm) are always welcome!
